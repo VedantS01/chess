@@ -1,0 +1,84 @@
+name: Deploy frontend to Vercel
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Only run if the Vercel secret is wired up. The job is silently skipped
+    # in forks / before the operator configures Vercel.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets are present
+        id: gate
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ] || [ -z "${{ secrets.VERCEL_ORG_ID }}" ] || [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "ok=false" >> $GITHUB_OUTPUT
+            echo "::warning::Vercel secrets are not configured; skipping deploy."
+          else
+            echo "ok=true" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.gate.outputs.ok == 'true'
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ok == 'true'
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Vercel CLI
+        if: steps.gate.outputs.ok == 'true'
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel project config
+        if: steps.gate.outputs.ok == 'true'
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ "${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
+            vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+          else
+            vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
+          fi
+
+      - name: Build frontend
+        if: steps.gate.outputs.ok == 'true'
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ "${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
+            vercel build --prod --token=$VERCEL_TOKEN
+          else
+            vercel build --token=$VERCEL_TOKEN
+          fi
+
+      - name: Deploy
+        if: steps.gate.outputs.ok == 'true'
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ "${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
+            vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+          else
+            vercel deploy --prebuilt --token=$VERCEL_TOKEN
+          fi

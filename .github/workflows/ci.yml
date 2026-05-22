@@ -19,19 +19,18 @@ jobs:
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install stockfish (for stockfish bot tests)
+      - name: Install stockfish
         run: sudo apt-get update && sudo apt-get install -y stockfish
 
-      - name: Install package + dev deps
+      - name: Install package + extras
         run: |
           python -m pip install -U pip
-          pip install -e ".[rl,dev]"
+          pip install -e ".[rl,backend,dev]"
 
       - name: Ruff lint
         run: ruff check .
@@ -40,22 +39,23 @@ jobs:
         run: pytest -q
 
   frontend:
-    name: frontend lint + test
+    name: frontend lint + test + build
     runs-on: ubuntu-latest
-    if: hashFiles('frontend/package.json') != ''
+    if: hashFiles('frontend/pnpm-lock.yaml') != ''
     defaults:
       run:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: pnpm test -- --run
+      - run: pnpm test
+      - run: pnpm build
