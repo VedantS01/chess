@@ -65,12 +65,22 @@ def register(name: str) -> Callable[[type[Bot]], type[Bot]]:
     return deco
 
 
+_LAZY_LOADERS: dict[str, Callable[[], None]] = {}
+
+
+def register_lazy(name: str, loader: Callable[[], None]) -> None:
+    """Register a deferred loader. Called the first time `get_bot(name)` is requested."""
+    _LAZY_LOADERS[name] = loader
+
+
 def get_bot(name: str, **kwargs: object) -> Bot:
     """Construct a bot by registered name. Raises `KeyError` if unknown."""
+    if name not in BOT_REGISTRY and name in _LAZY_LOADERS:
+        _LAZY_LOADERS.pop(name)()
     if name not in BOT_REGISTRY:
         raise KeyError(f"unknown bot: {name!r}. Known: {sorted(BOT_REGISTRY)}")
     return BOT_REGISTRY[name](**kwargs)
 
 
 def list_bots() -> list[str]:
-    return sorted(BOT_REGISTRY)
+    return sorted(set(BOT_REGISTRY) | set(_LAZY_LOADERS))

@@ -19,6 +19,15 @@ def main(argv: list[str] | None = None) -> int:
 
     add_play_subparsers(sub)
 
+    try:
+        from chesslab.rl.cli import add_train_subparser
+
+        add_train_subparser(sub)
+    except ImportError:
+        # torch optional dep not installed; train is unavailable but everything
+        # else still works.
+        pass
+
     args = parser.parse_args(argv)
 
     if args.cmd is None or args.cmd == "version":
