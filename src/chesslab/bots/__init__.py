@@ -10,12 +10,15 @@ from chesslab.bots.base import (
 )
 from chesslab.bots.heuristic import HeuristicBot
 from chesslab.bots.random_bot import RandomBot
+from chesslab.bots.stockfish_bot import StockfishBot, find_stockfish_binary
 
 __all__ = [
     "BOT_REGISTRY",
     "Bot",
     "HeuristicBot",
     "RandomBot",
+    "StockfishBot",
+    "find_stockfish_binary",
     "get_bot",
     "list_bots",
     "register",
