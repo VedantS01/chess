@@ -1,0 +1,36 @@
+# chesslab-runner: untrusted-bot sandbox.
+#
+# Runs the UCI shim as a non-root user with no network. Bots are mounted into
+# /bot at runtime (read-only). The orchestrator spawns one container per match
+# and tears it down when the match ends.
+
+FROM python:3.11-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+# Minimal deps; no compilers, no network tools.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+        ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+
+# Install the chesslab package + RL extras so MLBot is supported in sandboxes.
+RUN pip install --upgrade pip \
+ && pip install . \
+ && pip install --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.0"
+
+# Non-root user; bot mounted at /bot.
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin runner \
+ && mkdir -p /bot && chown -R runner:runner /bot
+USER runner
+WORKDIR /home/runner
+
+ENV CHESSLAB_BOT_PATH=/bot/bot.py
+
+ENTRYPOINT ["chesslab-runner"]
