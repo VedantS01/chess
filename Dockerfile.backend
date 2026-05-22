@@ -1,0 +1,36 @@
+# chesslab backend: FastAPI app that orchestrates matches via sandbox containers.
+#
+# The container needs to spawn sibling containers (the runner) via the docker
+# socket. In production, mount /var/run/docker.sock and ensure the runner image
+# tag in CHESSLAB_RUNNER_IMAGE matches what's published.
+
+FROM python:3.11-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+COPY backend/ ./backend/
+
+RUN pip install --upgrade pip \
+ && pip install ".[backend,rl]"
+
+ENV CHESSLAB_DATABASE_URL=sqlite:////data/chesslab.db \
+    CHESSLAB_BOT_DIR=/data/bot_artifacts
+
+# /data is the persistent volume (bot artifacts + sqlite DB).
+RUN mkdir -p /data && useradd --create-home --uid 10001 chesslab \
+ && chown -R chesslab:chesslab /data /app
+
+USER chesslab
+WORKDIR /app
+EXPOSE 8000
+
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

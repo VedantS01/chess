@@ -1,0 +1,69 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chesslab
+      POSTGRES_PASSWORD: chesslab
+      POSTGRES_DB: chesslab
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chesslab -d chesslab"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      CHESSLAB_DATABASE_URL: postgresql+psycopg://chesslab:chesslab@db:5432/chesslab
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-insecure-secret-change-me-please-min-32-bytes}
+      CHESSLAB_CORS_ORIGINS: http://localhost:3000
+      CHESSLAB_RUNNER_IMAGE: chesslab-runner:dev
+      CHESSLAB_DEV_AUTH: "1"
+      CHESSLAB_BOT_DIR: /data/bot_artifacts
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - chesslab_data:/data
+    ports:
+      - "8000:8000"
+
+  # Build the runner image as a one-shot so `docker compose up` has it locally.
+  runner-builder:
+    image: docker:25-cli
+    command: ["sh", "-c", "docker build -f Dockerfile.runner -t chesslab-runner:dev . && echo runner image built"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace
+    working_dir: /workspace
+    restart: "no"
+
+  frontend:
+    image: node:20-alpine
+    depends_on:
+      - backend
+    working_dir: /app
+    command: ["sh", "-c", "corepack enable && pnpm install --frozen-lockfile && pnpm dev"]
+    environment:
+      NEXT_PUBLIC_API_BASE: http://localhost:8000
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-insecure-secret-change-me-please-min-32-bytes}
+      GITHUB_OAUTH_ID: ${GITHUB_OAUTH_ID:-}
+      GITHUB_OAUTH_SECRET: ${GITHUB_OAUTH_SECRET:-}
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  chesslab_data:
+  frontend_node_modules:
