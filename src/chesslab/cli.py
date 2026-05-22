@@ -19,6 +19,10 @@ def main(argv: list[str] | None = None) -> int:
 
     add_play_subparsers(sub)
 
+    from chesslab.tournament.cli import add_tournament_subparser
+
+    add_tournament_subparser(sub)
+
     try:
         from chesslab.rl.cli import add_train_subparser
 
