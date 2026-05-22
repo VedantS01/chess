@@ -9,6 +9,7 @@ from backend.app.api import auth as auth_router
 from backend.app.api import bots as bots_router
 from backend.app.api import leaderboard as leaderboard_router
 from backend.app.api import matches as matches_router
+from backend.app.api import ws as ws_router
 from backend.app.config import settings
 from backend.app.db import init_db
 
@@ -35,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(bots_router.router, prefix="/api")
     app.include_router(matches_router.router, prefix="/api")
     app.include_router(leaderboard_router.router, prefix="/api")
+    app.include_router(ws_router.router, prefix="/api")
 
     @app.get("/api/health", tags=["health"])
     def health() -> dict[str, str]:
