@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+.env*.local
+.env
+*.tsbuildinfo
+.pnpm-debug.log
+.vitest-cache/
+.cache/
+playwright-report/
+test-results/
