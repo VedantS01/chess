@@ -14,6 +14,7 @@ from sqlmodel import Session, select
 
 from backend.app.auth import CurrentUser
 from backend.app.db import get_session
+from backend.app.match_runner import execute_pending_match
 from backend.app.models import Bot, Match, MatchResult, MatchStatus
 
 router = APIRouter(prefix="/matches", tags=["matches"])
@@ -47,11 +48,16 @@ def _match_out(m: Match) -> MatchOut:
     )
 
 
+class ScheduleResponse(BaseModel):
+    match: MatchOut
+
+
 @router.post("/schedule", response_model=MatchOut, status_code=status.HTTP_201_CREATED)
 def schedule_match(
     req: ScheduleMatchRequest,
     user: CurrentUser,  # noqa: ARG001  (authn gate; user surface for future per-user quotas)
     session: Annotated[Session, Depends(get_session)],
+    run_now: bool = True,
 ) -> MatchOut:
     if req.white_bot_id == req.black_bot_id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "bots must differ")
@@ -66,6 +72,8 @@ def schedule_match(
     session.add(match)
     session.commit()
     session.refresh(match)
+    if run_now:
+        execute_pending_match(session, match)
     return _match_out(match)
 
 

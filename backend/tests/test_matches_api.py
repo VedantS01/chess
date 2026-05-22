@@ -20,6 +20,7 @@ def test_schedule_match_creates_pending(client: TestClient, auth_headers: dict[s
     r = client.post(
         "/api/matches/schedule",
         headers=auth_headers,
+        params={"run_now": False},
         json={"white_bot_id": a, "black_bot_id": b},
     )
     assert r.status_code == 201
@@ -41,6 +42,7 @@ def test_schedule_match_rejects_self_play(
     r = client.post(
         "/api/matches/schedule",
         headers=auth_headers,
+        params={"run_now": False},
         json={"white_bot_id": a, "black_bot_id": a},
     )
     assert r.status_code == 400
@@ -53,6 +55,7 @@ def test_schedule_match_rejects_unknown_bot(
     r = client.post(
         "/api/matches/schedule",
         headers=auth_headers,
+        params={"run_now": False},
         json={"white_bot_id": a, "black_bot_id": 9999},
     )
     assert r.status_code == 404
@@ -67,6 +70,7 @@ def test_list_matches_returns_recent_first(
         client.post(
             "/api/matches/schedule",
             headers=auth_headers,
+            params={"run_now": False},
             json={"white_bot_id": a, "black_bot_id": b},
         )
     r = client.get("/api/matches")

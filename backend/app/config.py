@@ -10,7 +10,7 @@ import os
 from dataclasses import dataclass
 
 
-@dataclass(frozen=True)
+@dataclass
 class Settings:
     database_url: str = os.environ.get("CHESSLAB_DATABASE_URL", "sqlite:///./chesslab.db")
     nextauth_secret: str = os.environ.get(
