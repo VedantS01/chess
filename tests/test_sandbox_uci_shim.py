@@ -98,7 +98,6 @@ def test_uci_shim_drivable_by_simpleengine(tmp_path: Path) -> None:
     a few moves through our shim.
     """
     import os
-    import subprocess
 
     import chess
     import chess.engine
